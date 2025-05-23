@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "9000:9000"
+    volumes:
+      - .:/app             # Mounts your host code to the container
+      - /app/node_modules  # Crucial: Keeps node_modules within the container
+    environment:
+      NODE_ENV: development
+    command: npm start

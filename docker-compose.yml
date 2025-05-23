@@ -1,0 +1,76 @@
+
+# docker-compose.yml
+
+version: '3.8' # Specify the Docker Compose file format version
+
+services:
+  # Backend Service (Node.js Express)
+  backend:
+    build: ./server # Docker will look for the Dockerfile in the current directory (project root)
+    ports:
+      - "9000:9000" # Map host port 9000 to container port 9000
+    volumes:
+      # Mount the current host directory (your backend code) to /app inside the container.
+      # This enables hot-reloading for your Node.js backend.
+      - ./server:/app
+      # Create an anonymous volume for node_modules inside the container.
+      # This is crucial for nodemon's performance and correct dependency usage.
+      - /app/node_modules
+    environment:
+      NODE_ENV: development # Set environment variable for development mode
+    # Use the "start" script from package.json, which is configured for nodemon.
+    command: npm start
+
+  # Frontend Service (Static HTML served by Nginx)
+  frontend:
+    build: ./my-react-router-app # Docker will look for a Dockerfile in the 'frontend' subdirectory
+    ports:
+      - "5173:5173" # Map host port 80 (standard HTTP) to container port 80
+    volumes:
+      - './my-react-router-app:/app' # Mount your source code for hot-reloading
+      # - './src:/app/src' # Mount your source code for hot-reloading
+      - './public:/app/public' # Mount public directory if needed
+      - '/app/node_modules' # Anonymous volume to prevent host's node_modules from overwriting container's
+    depends_on:
+      - backend # This ensures the backend service starts before the frontend (optional, but good practice)
+    environment:
+      # These environment variables ensure hot-reloading works reliably, especially on Windows/macOS
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    # Keep stdin open for interactive processes (like npm start)
+    stdin_open: true 
+    # Allocate a pseudo-TTY for interactive processes
+    tty: true 
+
+# Instructions to set up and run this multi-service application:
+# 1. Ensure your 'server.js' is configured to listen on port 9000.
+# 2. Ensure your 'package.json' in the root directory has the "start" script:
+#    "scripts": {
+#      "start": "nodemon --legacy-watch server.js"
+#    }
+# 3. Create a new directory named 'frontend' in your project's root (next to server.js, package.json, etc.).
+# 4. Inside the 'frontend' directory, create a file named 'Dockerfile' with the following content:
+#    # frontend/Dockerfile
+#    FROM nginx:alpine
+#    COPY . /usr/share/nginx/html
+# 5. Inside the 'frontend' directory, create a file named 'index.html' with some basic content, e.g.:
+#    <!DOCTYPE html>
+#    <html lang="en">
+#    <head>
+#        <meta charset="UTF-8">
+#        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+#        <title>My Frontend App</title>
+#    </head>
+#    <body>
+#        <h1>Hello from the Frontend!</h1>
+#        <p>This is served by Nginx.</p>
+#        <a href="http://localhost:9000/api/data">Go to Backend API Data</a>
+#    </body>
+#    </html>
+# 6. Save this 'docker-compose.yml' file in your project's root directory.
+# 7. Open your terminal or CMD, navigate to your project's root directory.
+# 8. Run the following command to build and start both services:
+#    docker-compose up --build
+# 9. Access your Frontend at: http://localhost:80 (or just http://localhost)
+# 10. Access your Backend API at: http://localhost:9000/api/data
+#    Changes to your backend code (server.js) will still hot-reload thanks to nodemon.

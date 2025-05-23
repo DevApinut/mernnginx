@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:  
+  backend:
+    build:
+      context: ./server # Build context is the 'backend' directory
+      dockerfile: Dockerfile # Refers to backend/Dockerfile
+    ports:
+      - "9000:9000" # Expose backend port for direct access/debugging (optional)
+    networks:
+      - app-network
+    environment:
+      NODE_ENV: production
+      # Add any other environment variables your backend needs
+
+  frontend:
+    build: 
+        context: ./my-react-router-app 
+        dockerfile: Dockerfile.dev
+    restart: unless-stopped # <--- ADD THIS LINE
+    ports:
+       - "5173:5173" # Map host port 80 (standard HTTP) to container port 80
+    volumes:
+      - './my-react-router-app:/app' # Mount your source code for hot-reloading
+      # - './src:/app/src' # Mount your source code for hot-reloading
+      # - './public:/app/public' # Mount public directory if needed
+      - '/app/node_modules' # Anonymous volume to prevent host's node_modules from overwriting container's
+      
+    depends_on:
+      - backend # This ensures the backend service starts before the frontend (optional, but good practice)
+    environment:
+      # These environment variables ensure hot-reloading works reliably, especially on Windows/macOS
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    # Keep stdin open for interactive processes (like npm start)
+    stdin_open: true 
+    # Allocate a pseudo-TTY for interactive processes
+    tty: true 
+    networks:
+      - app-network
+      
+
+  nginx:
+    image: nginx:alpine # Use the lightweight Nginx image
+    ports:
+      - "80:80" # Nginx will listen on host port 80, acting as the main entry point
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro 
+      - ./wait-for-frontend.sh:/wait-for-frontend.sh
+      # Mount the built React app from the host's frontend/build directory
+      # This approach relies on 'npm run build' being run on the host before docker-compose up.
+      # If you prefer to build React within the Nginx container, remove this volume
+      # and handle the COPY in the Nginx Dockerfile as shown in `frontend/Dockerfile` stage 2.
+      # However, for this simplified setup with the `frontend` service handling the build,
+      # it's usually better to just use the `frontend` service output.
+      # --- I'm going to remove the frontend volume from here and rely on the frontend service
+      #     building and exposing its Nginx. This makes the architecture cleaner.
+    depends_on:
+      # - frontend # Nginx needs the frontend service to be ready to proxy to
+      - backend # Nginx needs the backend service to proxy to
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
