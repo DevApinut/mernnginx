@@ -32,7 +32,7 @@ COPY --from=frontend_builder /app/frontend/dist /usr/share/nginx/html
 COPY --from=backend_builder /app/backend /app/backend
 
 # Expose the port Nginx is listening on
-EXPOSE 8080
+EXPOSE 8000
 
 # Start Nginx and Node.js backend using a custom entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
